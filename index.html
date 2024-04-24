@@ -35,20 +35,32 @@
     <body>
     <h1>London Tree Map Data</h1>
     <div class="form-inputs">
-        <div class="form-field">
+        <!-- <div class="form-field">
             <label for="search-input">Search:</label>   
             <input id="search-input"/>
-        </div>
+        </div> -->
         
         <div class="form-field">
-            <label for="species-input">Enter a tree species:</label>
+            <label for="species-input">Enter a tree by common or species name:</label>
             <input  id="species-input" autoComplete="on" list="species-datalist"/>     
+        </div>   
+
+        <div class="form-field">
+            <label for="borough-input">If desired enter a borough:</label>
+            <input  id="borough-input" autoComplete="on" list="borough-datalist"/>     
         </div>    
+                
     </div>
     
     <datalist id="species-datalist">
 
     </datalist>
+
+    <datalist id="borough-datalist">
+
+    </datalist>
+
+
     <!-- experimental code -->
     <div id="controller1" class="controlers-filters categoryFilter">
 
@@ -225,44 +237,58 @@ locateControl.addTo(map);
 //     /*"OpenStreetMap.HOT": osmHOT*/
 // };
 
-function filterGeojson(search /* : (feature) -> bool,  : { search_term: string, location: [number, number], distance: number } */,geojsondata) /*->filter geojson data*/{
+
+function search_matches(search,feature) {
+    if (search.match(/['"]/)){
+
+if (feature.properties.scientificname.toLowerCase().includes(search.trim().toLowerCase()) || feature.properties.commonname.toLowerCase().includes(search.trim().toLowerCase())) {
+        return true;
+    }  
+
+
+} else {
+
+if (feature.properties.scientificname.toLowerCase().replace(/['"]/g, "").includes(search.trim().toLowerCase()) || feature.properties.commonname.toLowerCase().replace(/['"]/g, "").includes(search.trim().toLowerCase())) {
+        return true;
+    }    
+
+}
+
+}
+
+
+function borough_matches(borough,feature) {
+    if (borough.match(/['"]/)){
+
+if (feature.properties.wardname.toLowerCase().includes(borough.trim().toLowerCase())) {
+        return true;
+    }  
+
+
+} else {
+
+if (feature.properties.wardname.toLowerCase().replace(/['"]/g, "").includes(borough.trim().toLowerCase())) {
+        return true;
+    }    
+
+}
+
+}
+
+
+
+/*->filter geojson data*/
+function filterGeojson(search /* : (feature) -> bool,  : { search_term: string, location: [number, number], distance: number } */,borough, geojsondata) {
     //console.log(geojsondata)
     return geojsondata.features.filter( function (feature) {
-/*         if (!feature.properties.scientificname.includes("Umi")) {
-            return false;
-        }
-        console.log(feature, search) */
 
-        const a = search
-        if (search.match(/['"]/)){
-
-            if (feature.properties.scientificname.toLowerCase().includes(search.trim().toLowerCase()) || feature.properties.commonname.toLowerCase().includes(search.trim().toLowerCase())) {
-                    return true;
-                }  
-            
-
-        } else {
-
-            if (feature.properties.scientificname.toLowerCase().replace(/['"]/g, "").includes(search.trim().toLowerCase()) || feature.properties.commonname.toLowerCase().replace(/['"]/g, "").includes(search.trim().toLowerCase())) {
-                    return true;
-                }    
-     
-            }
+        return search_matches(search, feature) && borough_matches(borough, feature)
+        
     });
 
 }
 
 
-// function layerFromGeojson(geojsondata)/*->take geojson data and return a layer*/{
-//     return L.geoJSON(geojsondata, {
-//             onEachFeature: function(feature, layer) {
-//                 if (feature.properties && feature.properties.popupContent) {
-//                     layer.bindPopup(feature.properties.popupContent);
-//                 }    
-//             }
-//         });
-
-// }
 
 const geojsonMarkerOptions={}
 
@@ -291,7 +317,7 @@ function layerFromGeojson(geojsondata)/*->take geojson data and return a layer*/
 
 let geolayer
 
-function updateLayers(search, geojsondata){
+function updateLayers(search, borough, geojsondata){
     
 
     //genusSelect.addEventListener('change', function(event) {
@@ -300,7 +326,7 @@ function updateLayers(search, geojsondata){
     }
 
     
-    const filteredData = filterGeojson(search,geojsondata)
+    const filteredData = filterGeojson(search, borough, geojsondata)
 
     geolayer =  layerFromGeojson(filteredData)
 
@@ -382,6 +408,46 @@ function sortanddedupe(features){
 
 }
 
+
+//Add boroughs to datalist
+
+function addboroughToDropdown(geojsondata) {
+  var boroughSelect = document.getElementById('borough-datalist');
+  //console.log(speciesSelect)
+
+  for (const wardname of sortanddedupeb(geojsondata.features)){
+
+
+
+
+    var option = document.createElement('option');
+    option.value = wardname;
+    option.text = wardname;
+    boroughSelect.appendChild(option);
+   
+   //console.log(feature.properties.wardname) 
+
+
+   
+
+}
+
+};
+
+function sortanddedupeb(features){
+    const listofboroughs = []
+    for (const feature of features){
+        listofboroughs.push(feature.properties.wardname)
+    }
+    listofboroughs.sort()
+    return [...new Set(listofboroughs)];    
+
+}
+
+
+
+//////////////////
+
 async function addgeojsonFeature(geofile,layername) {
     const response = await fetch(geofile);
 
@@ -389,46 +455,45 @@ async function addgeojsonFeature(geofile,layername) {
    //console.log(geojsondata)
 
 
-    updateLayers("", geojsondata)
+    updateLayers("", "", geojsondata)
 
     
-    const inputSelect = document.getElementById('search-input');
-    inputSelect.addEventListener('input', function(event) {
+    // const inputSelect = document.getElementById('search-input');
+    // inputSelect.addEventListener('input', function(event) {
         
-        const search = event.target.value;
-        //console.log(search)
-        updateLayers(search, geojsondata)
-    }
+    //     const search = event.target.value;
+    //     //console.log(search)
+    //     updateLayers(search, geojsondata)
+    // }
        
-    )
+    // )
 
     const inputSelect2 = document.getElementById('species-input');
-    inputSelect2.addEventListener('input', function(event) {
-        
-        const search = event.target.value;
-        //console.log(search)
-        updateLayers(search, geojsondata)
+    const inputSelect3 = document.getElementById('borough-input');
+    const handleChange=()=>{        
+        const borough = inputSelect3.value;
+        const search = inputSelect2.value;
+        updateLayers(search, borough, geojsondata)
     }
-       
-    )
+    inputSelect2.addEventListener('input', handleChange)
 
 
+    
+    inputSelect3.addEventListener('input', handleChange)
 
-    /*var popup = L.popup()
-    .setLatLng([-0.20193, 51.546009])
-    .setContent("I am a standalone popup.")
-    .addTo(map);   */ 
+
     
     
     addspeciesToDropdown(geojsondata)
-
+    addboroughToDropdown(geojsondata)
+    
 
 }
 
 
 
 
-addgeojsonFeature("/wh_full.geojson","Trees")
+addgeojsonFeature("/camden_full.geojson","Trees")
 
 //const layerControl = L.control.layers(baseMaps).addTo(map);
 
